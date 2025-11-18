@@ -1,0 +1,19 @@
+---
+- name: Check if openwebui container exists
+  community.docker.docker_container_info:
+    name: openwebui
+  register: openwebui_info
+
+- name: Render openwebui compose file
+  ansible.builtin.template:
+    src: openwebui.yml.j2
+    dest: /tmp/llms/openwebui.yml
+    mode: '0644'
+  when: not openwebui_info.exists
+
+- name: Deploy openwebui using Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: /tmp/llms
+    files:
+      - openwebui.yml
+  when: not openwebui_info.exists

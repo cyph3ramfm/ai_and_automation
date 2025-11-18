@@ -1,0 +1,41 @@
+---
+services:
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: openwebui
+    hostname: openwebui
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+    environment:
+      # Enable Ollama backend
+      - ENABLE_OLLAMA=1
+      - OLLAMA_API_BASE_URL=http://ollama:11434
+      # Disable llama.cpp to avoid confusion
+      - ENABLE_LLAMACPP=0
+    volumes:
+      - {{ openwebui_data_volume }}:/app/backend/data
+    # depends_on:
+    #  - ollama
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.openwebui.entrypoints=http"
+      - "traefik.http.routers.openwebui.rule=Host(`{{ openwebui_domain_prefix }}.{{ vault_domain }}`)"
+      - "traefik.http.middlewares.openwebui-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.openwebui.middlewares=openwebui-https-redirect"
+      - "traefik.http.routers.openwebui-secure.entrypoints=https"
+      - "traefik.http.routers.openwebui-secure.rule=Host(`{{ openwebui_domain_prefix }}.{{ vault_domain }}`)"
+      - "traefik.http.routers.openwebui-secure.tls=true"
+      - "traefik.http.routers.openwebui-secure.service=openwebui"
+      - "traefik.http.services.openwebui.loadbalancer.server.port=8080"
+      - "traefik.docker.network={{ proxy_network_name }}"
+    networks:
+      - {{ proxy_network_name }}
+
+networks:
+  {{ proxy_network_name }}:
+    external: true
+    
+

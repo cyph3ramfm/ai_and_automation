@@ -1,0 +1,37 @@
+---
+- name: Check if n8n container exists
+  community.docker.docker_container_info:
+    name: n8n
+  register: n8n_info
+
+- name: Create n8n data directory
+  file:
+    path: "{{ n8n_data_file }}"
+    state: directory
+    owner: 1000
+    group: 1000
+    mode: '0755'
+  become: true
+
+- name: Create n8n files directory
+  file:
+    path: "{{ n8n_files_path }}"
+    state: directory
+    owner: 1000
+    group: 1000
+    mode: '0755'
+  become: true
+
+- name: Render n8n compose file
+  ansible.builtin.template:
+    src: n8n.yml.j2
+    dest: /tmp/automation/n8n.yml
+    mode: '0644'
+  when: not n8n_info.exists
+
+- name: Deploy n8n using Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: /tmp/automation
+    files:
+      - n8n.yml
+  when: not n8n_info.exists

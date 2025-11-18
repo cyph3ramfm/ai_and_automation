@@ -1,0 +1,19 @@
+---
+- name: Check if ollama container exists
+  community.docker.docker_container_info:
+    name: ollama
+  register: ollama_info
+
+- name: Render ollama compose file
+  ansible.builtin.template:
+    src: ollama.yml.j2
+    dest: /tmp/llms/ollama.yml
+    mode: '0644'
+  when: not ollama_info.exists
+
+- name: Deploy ollama using Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: /tmp/llms
+    files:
+      - ollama.yml
+  when: not ollama_info.exists

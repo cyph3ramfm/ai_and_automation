@@ -1,0 +1,82 @@
+---
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    container_name: n8n
+    restart: always
+    #ports:
+    #  - "127.0.0.1:5678:5678"
+    environment:
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_HOST={{ n8n_domain_prefix }}.{{ vault_domain }}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_PROXY_HOPS=1
+      - EXPRESS_TRUST_PROXY=true
+
+      # SQLite improvements
+      - DB_TYPE=sqlite
+      - DB_SQLITE_POOL_SIZE=2
+      - DB_SQLITE_VACUUM_ON_STARTUP=true
+      # Security recommended by n8n warnings
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=true
+      - N8N_GIT_NODE_DISABLE_BARE_REPOS=true
+
+      - NODE_ENV=production
+      - WEBHOOK_URL=https://{{ n8n_domain_prefix }}.{{ vault_domain }}/
+      - GENERIC_TIMEZONE={{ timezone }}
+      - TZ={{ timezone }}
+    volumes:
+      - {{ n8n_data_file }}:/home/node/.n8n
+      - {{ n8n_files_path }}:/files    
+    #healthcheck:
+    #  test: ["CMD-SHELL",
+    #    "wget --spider -q http://localhost:5678/healthz && \
+    #     sqlite3 /home/node/.n8n/database.sqlite 'PRAGMA integrity_check;' | grep -q 'ok'"
+    #  ]
+    #  interval: 45s
+    #  timeout: 10s
+    #  retries: 5
+    #  start_period: 20s
+    labels:
+      - "traefik.enable=true"
+
+      # HTTP router (redirect to HTTPS)
+      - "traefik.http.routers.n8n.rule=Host(`{{ n8n_domain_prefix }}.{{ vault_domain }}`)"
+      - "traefik.http.routers.n8n.entrypoints=http"
+      - "traefik.http.routers.n8n.middlewares=n8n-redirect@docker"
+
+      # Redirect middleware
+      - "traefik.http.middlewares.n8n-redirect.redirectscheme.scheme=https"
+
+      # HTTPS router
+      - "traefik.http.routers.n8n-secure.rule=Host(`{{ n8n_domain_prefix }}.{{ vault_domain }}`)"
+      - "traefik.http.routers.n8n-secure.entrypoints=https"
+      - "traefik.http.routers.n8n-secure.tls=true"
+      - "traefik.http.routers.n8n-secure.service=n8n"
+
+      # Service mapping
+      - "traefik.http.services.n8n.loadbalancer.server.port=5678"
+
+      # Security headers middleware
+      - "traefik.http.middlewares.n8n-secure-headers.headers.SSLRedirect=true"
+      - "traefik.http.middlewares.n8n-secure-headers.headers.STSSeconds=315360000"
+      - "traefik.http.middlewares.n8n-secure-headers.headers.browserXSSFilter=true"
+      - "traefik.http.middlewares.n8n-secure-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.n8n-secure-headers.headers.forceSTSHeader=true"
+      - "traefik.http.middlewares.n8n-secure-headers.headers.SSLHost={{ vault_domain }}"
+      - "traefik.http.middlewares.n8n-secure-headers.headers.STSIncludeSubdomains=true"
+      - "traefik.http.middlewares.n8n-secure-headers.headers.STSPreload=true"
+
+      # attach security headers to HTTPS router
+      - "traefik.http.routers.n8n-secure.middlewares=n8n-secure-headers@docker"
+
+      # Traefik network
+      - "traefik.docker.network={{ proxy_network_name }}"
+    networks:
+      - {{ proxy_network_name }}
+      
+networks:
+  {{ proxy_network_name }}:
+    external: true

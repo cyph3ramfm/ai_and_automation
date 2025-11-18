@@ -1,0 +1,34 @@
+---
+# This file contains default variables for the Ansible playbook used to deploy the home lab.
+# Modify these variables as needed for your environment.
+
+######################### Global settings #########################
+timezone: "Europe/London"  # Set your local timezone for accurate log times
+debug_mode: false  # Set to true to enable debug mode for Ansible playbooks
+
+mount_point_docker_volumes: "/mnt/docker_volumes"  # Local mount point for Docker volumes (was used with NFS)
+
+######################### Control flow #########################
+deploy_llms: true  # Set to true to deploy OpenWebUI and Ollama services
+deploy_automation: true  # Set to true to deploy n8n service
+
+######################### Base infrastructure #########################
+### Network settings
+home_lab_network_name: home_lab # Name of the primary Docker network for the home lab
+proxy_network_name: proxy # Name of the Docker network used for proxy services
+
+
+######################### LLMs #########################
+### OpenWebUI
+openwebui_data_volume: /var/docker_data/openwebui/data  # Docker volume name for OpenWebUI data storage
+openwebui_domain_prefix: openwebui
+
+### Ollama
+models_path: "{{mount_point_docker_volumes}}/ollama/models"  # Path to where Ollama models are stored
+ollama_domain_prefix: ollama
+
+######################### Automation #########################
+### n8n
+n8n_data_file: /var/docker_data/n8n # Path to where n8n saves its SQLite database file and encryption key
+n8n_files_path: /var/docker_data/n8n/files # Path to n8n files directory
+n8n_domain_prefix: n8n

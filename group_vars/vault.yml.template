@@ -1,0 +1,4 @@
+---
+######################### General settings #########################
+vault_domain:  # Domain url used for accessing services remotely (e.g., example.com)
+

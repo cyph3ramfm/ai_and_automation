@@ -1,0 +1,28 @@
+---
+- name: Deploy automation if requested
+  when: deploy_automation | bool
+  block:
+    - name: Check if proxy Docker network exists
+      community.docker.docker_network_info:
+        name: "{{ proxy_network_name }}"
+      register: proxy_network_info
+
+    - name: Fail if proxy network doesn't exist
+      ansible.builtin.fail:
+        msg: "Required Docker network '{{ proxy_network_name }}' does not exist. Please create the network first through the core_infrastructure role."
+      when: not proxy_network_info.exists
+    
+    - name: Create automation directory
+      ansible.builtin.file:
+        path: /tmp/automation
+        state: directory
+
+    - name: Include n8n tasks
+      ansible.builtin.include_tasks: n8n.yml
+      when: n8n_domain_prefix | length > 0 and n8n_data_file | length > 0 and n8n_files_path | length > 0
+    
+    - name: Delete automation related files
+      ansible.builtin.file:
+        path: /tmp/automation
+        state: absent
+      when: not debug_mode
