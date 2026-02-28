@@ -1,0 +1,19 @@
+---
+- name: Check if tika container exists
+  community.docker.docker_container_info:
+    name: tika
+  register: tika_info
+
+- name: Render tika compose file
+  ansible.builtin.template:
+    src: tika.yml.j2
+    dest: /tmp/llms/tika.yml
+    mode: '0644'
+  when: not tika_info.exists
+
+- name: Deploy tika using Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: /tmp/llms
+    files:
+      - tika.yml
+  when: not tika_info.exists

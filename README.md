@@ -14,27 +14,36 @@ group_vars/
 inventory/
 └── hosts                              # Target machine definitions (localhost by default)
 roles/
-├── llms/                              # LLMs (Ollama + OpenWebUI)
+├── llms/                              # LLMs + Document Processing (Ollama, OpenWebUI, SearXNG, Tika, Qdrant)
 │   ├── tasks/
 │   │   ├── main.yml                   # Network validation and conditional deployment
 │   │   ├── ollama.yml                 # Ollama container with GPU support
-│   │   └── openwebui.yml              # OpenWebUI container with ollama integration
+│   │   ├── openwebui.yml              # OpenWebUI container with ollama integration
+│   │   ├── searxng.yml                # SearXNG container for web search
+│   │   ├── tika.yml                   # Tika container for OCR/document processing
+│   │   └── qdrant.yml                 # Qdrant vector database for RAG
 │   └── templates/
 │       ├── ollama.yml.j2              # Ollama Docker Compose template (AMD Vulkan GPU)
-│       └── openwebui.yml.j2           # OpenWebUI Docker Compose template
+│       ├── openwebui.yml.j2           # OpenWebUI Docker Compose template
+│       ├── searxng.yml.j2             # SearXNG Docker Compose template with Redis
+│       ├── tika.yml.j2                # Tika Docker Compose template with Traefik routing
+│       └── qdrant.yml.j2              # Qdrant Docker Compose template
 └── automation/                         # Automation services (n8n)
-  ├── tasks/
-  │   ├── main.yml                   # Network validation and conditional deployment
-  │   └── n8n.yml                    # n8n container deployment and setup
-  └── templates/
-    └── n8n.yml.j2                 # n8n Docker Compose template
+    ├── tasks/
+    │   ├── main.yml                   # Network validation and conditional deployment
+    │   └── n8n.yml                    # n8n container deployment and setup
+    └── templates/
+        └── n8n.yml.j2                 # n8n Docker Compose template
 ```
 
 ## Key Features
 
-### AI Services
+### AI & Automation Services
 - **Ollama**: LLM inference server with GPU acceleration (AMD Vulkan)
-- **OpenWebUI**: Chat interface integrated with Ollama backend
+- **OpenWebUI**: Chat interface integrated with Ollama backend, web search, document RAG, and vector embeddings
+- **SearXNG**: Privacy-respecting metasearch engine for web search integration
+- **Tika**: OCR and document processing server for RAG (Retrieval-Augmented Generation)
+- **Qdrant**: Vector database for storing and retrieving document embeddings in RAG workflows
 - **n8n**: Workflow automation and integration platform
 
 ### Integration Points
@@ -77,8 +86,11 @@ vim group_vars/vault.yml
 Edit `group_vars/main.yml` to customize:
 - `mount_point_docker_volumes`: Path for Ollama models storage
 - `openwebui_data_volume`: OpenWebUI persistent data location
+- `searxng_config_volume` / `searxng_data_volume` / `searxng_redis_data_volume`: SearXNG storage paths
+- `tika_cpu_limit` / `tika_memory_limit` / `tika_domain_prefix`: Tika resource limits and domain
+- `qdrant_data_volume` / `qdrant_cpu_limit` / `qdrant_memory_limit`: Qdrant vector DB storage and resources
 - `n8n_data_file` / `n8n_files_path`: n8n configuration locations
-- `deploy_llms` / `deploy_automation`: Enable/disable services
+- `deploy_llms` / `deploy_automation`: Enable/disable service groups
 - Network names if your infrastructure uses different names
 
 ### 3. Run the Deployment
@@ -149,6 +161,12 @@ All roles use the idempotent pattern of checking if containers exist before depl
 - **OpenWebUI ↔ Ollama**: Uses Docker Compose service discovery
   - OpenWebUI environment: `OLLAMA_API_BASE_URL=http://ollama:11434`
   - Both services must be in the same Compose project
+- **OpenWebUI ↔ Tika**: OCR and document extraction
+  - OpenWebUI environment: `DOCUMENT_EXTRACTOR_URL=http://tika:9998`
+- **OpenWebUI ↔ Qdrant**: Vector embedding storage and retrieval
+  - OpenWebUI environment: `QDRANT_URI=http://qdrant:6333`
+- **OpenWebUI ↔ SearXNG**: Web search integration
+  - OpenWebUI environment: `SEARXNG_BASE_URL=http://searxng:8080`
 - **All Services ↔ Traefik**: Via shared `proxy_network` and Traefik labels
 
 ### GPU Support (AMD)
@@ -162,6 +180,20 @@ devices:
 
 **Porting to NVIDIA?** Replace Vulkan environment variables with CUDA settings and adjust device mappings.
 
+### RAG Workflow Architecture (Retrieval-Augmented Generation)
+OpenWebUI provides a complete RAG pipeline integrating document processing, embedding, and retrieval:
+
+1. **Document Upload** → User uploads document in OpenWebUI
+2. **OCR & Extraction** (Tika) → Document text extracted via Tika OCR server (`DOCUMENT_EXTRACTOR_URL=http://tika:9998`)
+3. **Embedding Generation** → Extracted text converted to embeddings using OpenWebUI's embedding model
+4. **Vector Storage** (Qdrant) → Embeddings stored in Qdrant vector DB (`QDRANT_URI=http://qdrant:6333`) with collection prefix (`QDRANT_COLLECTION_PREFIX=openwebui`)
+5. **Chat Query** → User asks question in OpenWebUI chat
+6. **Semantic Search** → Query embedded and similar embeddings retrieved from Qdrant
+7. **Context + LLM** → Retrieved document context combined with query and sent to Ollama LLM
+8. **Response** → Ollama generates response grounded in document content
+
+**Network Requirement**: Qdrant runs on `home_lab_network` (internal only) for secure inter-service communication.
+
 ## Configuration Reference
 
 | Variable | File | Purpose |
@@ -169,10 +201,24 @@ devices:
 | `mount_point_docker_volumes` | `group_vars/main.yml` | Root path for persistent container data |
 | `models_path` | `group_vars/main.yml` | Ollama model storage location |
 | `openwebui_data_volume` | `group_vars/main.yml` | OpenWebUI persistent data directory |
+| `searxng_config_volume` | `group_vars/main.yml` | SearXNG configuration storage |
+| `searxng_data_volume` | `group_vars/main.yml` | SearXNG cache storage |
+| `searxng_redis_data_volume` | `group_vars/main.yml` | SearXNG Redis data storage |
+| `searxng_domain_prefix` | `group_vars/main.yml` | Domain prefix for SearXNG web UI |
+| `tika_cpu_limit` | `group_vars/main.yml` | CPU limit for Tika container (e.g., "2.0") |
+| `tika_memory_limit` | `group_vars/main.yml` | Memory limit for Tika in MB (e.g., "2048M") |
+| `tika_domain_prefix` | `group_vars/main.yml` | Domain prefix for Tika web UI |
+| `qdrant_data_volume` | `group_vars/main.yml` | Qdrant vector database storage location |
+| `qdrant_collection_prefix` | `group_vars/main.yml` | Collection prefix for Qdrant embeddings (e.g., "openwebui") |
+| `qdrant_cpu_limit` | `group_vars/main.yml` | CPU limit for Qdrant container (e.g., "1.0") |
+| `qdrant_memory_limit` | `group_vars/main.yml` | Memory limit for Qdrant in MB (e.g., "1024M") |
 | `n8n_data_file` | `group_vars/main.yml` | n8n SQLite database and encryption key storage |
+| `n8n_files_path` | `group_vars/main.yml` | n8n files storage location |
 | `proxy_network_name` | `group_vars/main.yml` | Traefik network name (must exist) |
+| `home_lab_network_name` | `group_vars/main.yml` | Internal home lab network name (must exist) |
 | `vault_domain` | `group_vars/vault.yml` | Base domain for service subdomains |
-| `deploy_*` flags | `group_vars/main.yml` | Enable/disable service deployment (e.g. `deploy_llms`, `deploy_automation`) |
+| `deploy_llms` | `group_vars/main.yml` | Enable/disable LLM services (Ollama, OpenWebUI, SearXNG, Tika, Qdrant) |
+| `deploy_automation` | `group_vars/main.yml` | Enable/disable n8n automation service |
 | `debug_mode` | `group_vars/main.yml` | Preserve rendered compose files in `/tmp/` for inspection |
 
 ## Troubleshooting
@@ -203,6 +249,30 @@ cat /tmp/llms/ollama.yml
 # Verify device access
 docker exec ollama ls -la /dev/dri/
 ```
+
+### RAG Not Working (Qdrant/Tika/OpenWebUI)
+**Issue**: Document embeddings not being stored or retrieved
+1. **Verify Qdrant is running**:
+   ```bash
+   docker ps | grep qdrant
+   curl http://localhost:6333/health
+   ```
+2. **Verify Tika is accessible from OpenWebUI**:
+   ```bash
+   docker exec openwebui curl -s http://tika:9998/v1/meta
+   ```
+3. **Check OpenWebUI logs for embedding errors**:
+   ```bash
+   docker logs openwebui | grep -i "qdrant\|embedding\|vector"
+   ```
+4. **Verify Qdrant collection was created**:
+   ```bash
+   docker exec qdrant curl -s http://localhost:6333/collections | jq '.result.collections[] | .name'
+   ```
+5. **Ensure `VECTOR_DB=qdrant` is set in OpenWebUI**:
+   ```bash
+   docker exec openwebui env | grep VECTOR_DB
+   ```
 
 ### Traefik Certificate Issues
 **Issue**: Traefik can't obtain SSL certificates

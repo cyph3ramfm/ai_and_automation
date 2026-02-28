@@ -27,6 +27,24 @@ openwebui_domain_prefix: openwebui
 models_path: "{{mount_point_docker_volumes}}/ollama/models"  # Path to where Ollama models are stored
 ollama_domain_prefix: ollama
 
+### SearXNG (Web Search Engine)
+searxng_config_volume: "/var/docker_data/searxng/config"  # Path to SearXNG configuration
+searxng_data_volume: "/var/docker_data/searxng/data"  # Path to SearXNG data
+searxng_redis_data_volume: "/var/docker_data/searxng/redis-data"  # Path to Redis data
+searxng_domain_prefix: searxng  # Domain prefix for SearXNG (used with Traefik)
+
+### Tika (OCR/Document Processing)
+tika_cpu_limit: "2.0"  # CPU limit for Tika container
+tika_memory_limit: "2048M"  # Memory limit for Tika container in MB
+tika_domain_prefix: tika  # Domain prefix for Tika web UI (used with Traefik)
+
+### Qdrant (Vector Database for RAG)
+qdrant_data_volume: "/var/docker_data/qdrant/storage"  # Path to Qdrant storage for embeddings
+qdrant_collection_prefix: "openwebui"  # Collection prefix for OpenWebUI embeddings
+qdrant_cpu_limit: "1.0"  # CPU limit for Qdrant container
+qdrant_memory_limit: "1024M"  # Memory limit for Qdrant container in MB
+qdrant_domain_prefix: qdrant  # Domain prefix for Qdrant (used with Traefik)
+
 ######################### Automation #########################
 ### n8n
 n8n_data_file: /var/docker_data/n8n # Path to where n8n saves its SQLite database file and encryption key

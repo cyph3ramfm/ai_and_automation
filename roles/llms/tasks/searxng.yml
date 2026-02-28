@@ -1,0 +1,19 @@
+---
+- name: Check if searxng container exists
+  community.docker.docker_container_info:
+    name: searxng
+  register: searxng_info
+
+- name: Render searxng compose file
+  ansible.builtin.template:
+    src: searxng.yml.j2
+    dest: /tmp/llms/searxng.yml
+    mode: '0644'
+  when: not searxng_info.exists
+
+- name: Deploy searxng using Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: /tmp/llms
+    files:
+      - searxng.yml
+  when: not searxng_info.exists

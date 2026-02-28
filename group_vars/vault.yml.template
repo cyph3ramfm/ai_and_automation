@@ -1,4 +1,5 @@
 ---
 ######################### General settings #########################
-vault_domain:  # Domain url used for accessing services remotely (e.g., example.com)
+vault_device_name:  # Name of the device
 
+vault_domain:  # Domain url used for accessing services remotely (e.g., example.com)

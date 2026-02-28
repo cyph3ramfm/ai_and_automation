@@ -1,0 +1,19 @@
+---
+- name: Check if qdrant container exists
+  community.docker.docker_container_info:
+    name: qdrant
+  register: qdrant_info
+
+- name: Render qdrant compose file
+  ansible.builtin.template:
+    src: qdrant.yml.j2
+    dest: /tmp/llms/qdrant.yml
+    mode: '0644'
+  when: not qdrant_info.exists
+
+- name: Deploy qdrant using Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: /tmp/llms
+    files:
+      - qdrant.yml
+  when: not qdrant_info.exists

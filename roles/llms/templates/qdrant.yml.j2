@@ -1,0 +1,41 @@
+---
+# Qdrant vector database for RAG (Retrieval-Augmented Generation)
+# Used by OpenWebUI to store and retrieve document embeddings
+# Not exposed publicly—accessed internally via Docker DNS at http://qdrant:6333
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    hostname: qdrant
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+    ports:
+      - "6333:6333"
+    deploy:
+      resources:
+        limits:
+          cpus: '{{ qdrant_cpu_limit }}'
+          memory: {{ qdrant_memory_limit }}
+    volumes:
+      - {{ qdrant_data_volume }}:/qdrant/storage
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.qdrant.entrypoints=http"
+      - "traefik.http.routers.qdrant.rule=Host(`{{ qdrant_domain_prefix }}.{{ vault_domain }}`)"
+      - "traefik.http.middlewares.qdrant-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.qdrant.middlewares=qdrant-https-redirect"
+      - "traefik.http.routers.qdrant-secure.entrypoints=https"
+      - "traefik.http.routers.qdrant-secure.rule=Host(`{{ qdrant_domain_prefix }}.{{ vault_domain }}`)"
+      - "traefik.http.routers.qdrant-secure.tls=true"
+      - "traefik.http.routers.qdrant-secure.service=qdrant"
+      - "traefik.http.services.qdrant.loadbalancer.server.port=6333"
+      - "traefik.docker.network={{ proxy_network_name }}"
+    networks:
+      - {{ proxy_network_name }}
+
+networks:
+  {{ proxy_network_name }}:
+    external: true

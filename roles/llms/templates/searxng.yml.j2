@@ -1,0 +1,57 @@
+---
+# SearXNG configuration for OpenWebUI: https://docs.openwebui.com/features/chat-conversations/web-search/providers/searxng
+services:
+  searxng-redis:
+    image: docker.io/valkey/valkey:8-alpine
+    container_name: searxng-redis
+    hostname: searxng-redis
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+    command: valkey-server --save 30 1 --loglevel warning
+    volumes:
+      - {{ searxng_redis_data_volume }}:/data
+    networks:
+      - {{ proxy_network_name }}
+
+  searxng:
+    image: docker.io/searxng/searxng:latest
+    container_name: searxng
+    hostname: searxng
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+    #ports:
+    #  - "8080:8080"
+    environment:
+      - SEARXNG_BASE_URL=https://{{ searxng_domain_prefix }}.{{ vault_domain }}/
+    volumes:
+      - {{ searxng_config_volume }}:/etc/searxng:rw
+      - {{ searxng_data_volume}}:/var/cache/searxng:rw
+    #depends_on:
+    #  - searxng-redis
+    # UNCOMMENT AFTER FIRST RUN
+    #cap_drop:
+    #    - ALL
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.searxng.entrypoints=http"
+      - "traefik.http.routers.searxng.rule=Host(`{{ searxng_domain_prefix }}.{{ vault_domain }}`)"
+      - "traefik.http.middlewares.searxng-https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.routers.searxng.middlewares=searxng-https-redirect"
+      - "traefik.http.routers.searxng-secure.entrypoints=https"
+      - "traefik.http.routers.searxng-secure.rule=Host(`{{ searxng_domain_prefix }}.{{ vault_domain }}`)"
+      - "traefik.http.routers.searxng-secure.tls=true"
+      - "traefik.http.routers.searxng-secure.service=searxng"
+      - "traefik.http.services.searxng.loadbalancer.server.port=8080"
+      - "traefik.docker.network={{ proxy_network_name }}"
+    networks:
+      - {{ proxy_network_name }}
+
+networks:
+  {{ proxy_network_name }}:
+    external: true

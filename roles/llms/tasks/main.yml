@@ -31,9 +31,23 @@
       ansible.builtin.include_tasks: ollama.yml
       when: models_path | length > 0
 
+    - name: Include searxng tasks
+      ansible.builtin.include_tasks: searxng.yml
+      when: searxng_config_volume | length > 0 and searxng_data_volume | length > 0 and searxng_redis_data_volume | length > 0 and searxng_domain_prefix | length > 0
+            and searxng_redis_data_volume | length > 0 and searxng_domain_prefix | length > 0
+
+    - name: Include tika tasks
+      ansible.builtin.include_tasks: tika.yml
+      when: tika_cpu_limit | length > 0 and tika_memory_limit | length > 0 and tika_domain_prefix | length > 0
+
+    - name: Include qdrant tasks
+      ansible.builtin.include_tasks: qdrant.yml
+      when: qdrant_data_volume | length > 0 and qdrant_cpu_limit | length > 0 and qdrant_memory_limit | length > 0
+    
     - name: Include openwebui tasks
       ansible.builtin.include_tasks: openwebui.yml
-      when: openwebui_data_volume | length > 0
+      when: openwebui_data_volume | length > 0 and openwebui_domain_prefix | length > 0
+
 
     - name: Delete llms related files
       ansible.builtin.file:

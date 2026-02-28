@@ -1,0 +1,40 @@
+---
+# Tika OCR server for document content extraction
+# Used by OpenWebUI for RAG (Retrieval-Augmented Generation) with document uploads
+# Exposes web UI at https://{{ tika_domain_prefix }}.{{ vault_domain }}
+services:
+  tika:
+    image: apache/tika:latest-full
+    container_name: tika
+    hostname: tika
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+    ports:
+      - "9998:9998"
+    deploy:
+      resources:
+        limits:
+          cpus: '{{ tika_cpu_limit }}'
+          memory: {{ tika_memory_limit }}
+    # Traefik labels can be uncommented for debugging but not required for OpenWebUI
+    #labels:
+    #  - "traefik.enable=true"
+    #  - "traefik.http.routers.tika.entrypoints=http"
+    #  - "traefik.http.routers.tika.rule=Host(`{{ tika_domain_prefix }}.{{ vault_domain }}`)"
+    #  - "traefik.http.middlewares.tika-https-redirect.redirectscheme.scheme=https"
+    #  - "traefik.http.routers.tika.middlewares=tika-https-redirect"
+    #  - "traefik.http.routers.tika-secure.entrypoints=https"
+    #  - "traefik.http.routers.tika-secure.rule=Host(`{{ tika_domain_prefix }}.{{ vault_domain }}`)"
+    #  - "traefik.http.routers.tika-secure.tls=true"
+    #  - "traefik.http.routers.tika-secure.service=tika"
+    #  - "traefik.http.services.tika.loadbalancer.server.port=9998"
+    #  - "traefik.docker.network={{ proxy_network_name }}"
+    networks:
+      - {{ proxy_network_name }}
+
+networks:
+  {{ proxy_network_name }}:
+    external: true

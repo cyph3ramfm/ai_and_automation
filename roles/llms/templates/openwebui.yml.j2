@@ -15,6 +15,18 @@ services:
       - OLLAMA_API_BASE_URL=http://ollama:11434
       # Disable llama.cpp to avoid confusion
       - ENABLE_LLAMACPP=0
+      # Enable web search using SearXNG
+      - ENABLE_WEB_SEARCH=true
+      - WEB_SEARCH_ENGINE=searxng
+      - SEARXNG_BASE_URL=http://searxng:8080
+      # Enable RAG from documents
+      - ENABLE_DOCUMENT_EXTRACTION=true
+      - DOCUMENT_EXTRACTOR_URL=http://tika:9998
+      # Vector DB Configuration for RAG
+      - VECTOR_DB=qdrant
+      - QDRANT_URI=http://qdrant:6333
+      - QDRANT_COLLECTION_PREFIX={{ qdrant_collection_prefix }}
+      - RAG_EMBEDDING_BATCH_SIZE=32
     volumes:
       - {{ openwebui_data_volume }}:/app/backend/data
     # depends_on:
@@ -37,5 +49,3 @@ services:
 networks:
   {{ proxy_network_name }}:
     external: true
-    
-
