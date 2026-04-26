@@ -24,11 +24,14 @@ services:
       - {{ models_path }}:/root/.ollama
     group_add:
       - video
+    ports:
+      - "11434:11434"
     networks:
       - {{ proxy_network_name }}
+      - {{ home_lab_network_name }}
 
 networks:
   {{ proxy_network_name }}:
     external: true
-    
-
+  {{ home_lab_network_name }}:
+    external: true
